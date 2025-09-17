@@ -107,12 +107,12 @@ def main():
             t1 = time.time() - t0
             total_time += t1
             print('Evaluating')
-            for k in [10]:
-                test_result = evaluate(model, dataset, sequence_size = 10, k = args.k)
-                val_result = evaluate_validation(model, dataset, sequence_size = 10, k = args.k)
+            for k in [args.k]:
+                test_result = evaluate(model, dataset, sequence_size = 10, k = k)
+                val_result = evaluate_validation(model, dataset, sequence_size = 10, k = k)
                 print('epoch:%d, time: %f(s), valid (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f), test (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f)' %
-                    (epoch, total_time, args.k, val_result["NDCG@k"], args.k, val_result["Hit@k"], args.k, val_result["Recall@k"],
-                    args.k, test_result["NDCG@k"], args.k, test_result["Hit@k"], args.k, test_result["Recall@k"]))
+                    (epoch, total_time, k, val_result["NDCG@k"], k, val_result["Hit@k"], args.k, val_result["Recall@k"],
+                    k, test_result["NDCG@k"], k, test_result["Hit@k"], k, test_result["Recall@k"]))
 
 
             if val_result["NDCG@k"] > best_val_ndcg or val_result["Hit@k"] > best_val_hr or val_result["Recall@k"] > best_val_recall or test_result["NDCG@k"] > best_test_ndcg or test_result["Hit@k"] > best_test_hr or test_result["Recall@k"] > best_test_recall:
