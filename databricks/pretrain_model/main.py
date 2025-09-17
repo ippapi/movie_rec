@@ -17,6 +17,7 @@ def str2bool(s):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type = str)
+    parser.add_argument('--log_dir', type = str)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--sequence_size', default=20, type=int)
@@ -37,7 +38,7 @@ def main():
     [train, _, _, num_users, num_movies] = dataset
     num_batch = (len(train) - 1) // args.batch_size + 1
 
-    f = open("/content/drive/MyDrive/BIG_MOOC/log.txt", 'w')
+    f = open(args.log_dir, 'w')
     f.write('epoch (val_ndcg, val_hit, val_recall) (test_ndcg, test_hit, test_recall)\n')
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
