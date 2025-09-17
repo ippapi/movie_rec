@@ -14,7 +14,7 @@ def data_retrieval(data_dir):
         nonlocal num_users, num_movies
         df = pd.read_parquet(path)
         for _, row in df.iterrows():
-            user = int(row['user'])
+            user = int(row['user_id'])
             movies = ast.literal_eval(row['feature'])
             movies = [x + 1 for x in movies]
             storage[user].extend(movies)
@@ -26,7 +26,7 @@ def data_retrieval(data_dir):
         nonlocal num_users, num_movies
         df = pd.read_parquet(path)
         for _, row in df.iterrows():
-            user = int(row['user'])
+            user = int(row['user_id'])
             movie = int(row[label_column]) + 1
             storage[user].append(movie)
             num_users = max(num_users, user)
