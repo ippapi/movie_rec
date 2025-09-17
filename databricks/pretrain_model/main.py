@@ -5,9 +5,9 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 
-from utils.single_model import SASREC
-from utils.single_data_utils import *
-from utils.single_evaluate_utils import *
+from model import SASREC
+from utils import *
+from evaluate import *
 
 def str2bool(s):
     if s not in {'false', 'true'}:
