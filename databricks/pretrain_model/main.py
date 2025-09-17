@@ -17,6 +17,7 @@ def str2bool(s):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type = str)
+    parser.add_argument('--model_checkpoint_dir', type = str)
     parser.add_argument('--log_dir', type = str)
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--learning_rate', default=0.001, type=float)
@@ -121,7 +122,7 @@ def main():
                 best_test_ndcg = max(test_result["NDCG@k"], best_test_ndcg)
                 best_test_hr = max(test_result["Hit@k"], best_test_hr)
                 best_test_recall = max(test_result["Recall@k"], best_test_recall)
-                folder = args.data_dir
+                folder = args.model_checkpoint_dir
                 fname = 'SASRec.epoch={}.learning_rate={}.layer={}.head={}.embedding_dims={}.sequence_size={}.pth'
                 fname = fname.format(epoch, args.learning_rate, args.num_blocks, args.num_heads, args.embedding_dims, args.sequence_size)
                 torch.save(model.state_dict(), os.path.join(folder, fname))
