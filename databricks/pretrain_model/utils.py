@@ -12,7 +12,7 @@ def data_retrieval(data_dir):
 
     def load_train(path, storage):
         nonlocal num_users, num_movies
-        df = pd.read_csv(path)
+        df = pd.read_parquet(path)
         for _, row in df.iterrows():
             user = int(row['user'])
             movies = ast.literal_eval(row['feature'])
@@ -24,7 +24,7 @@ def data_retrieval(data_dir):
 
     def load_single_label_file(path, label_column, storage):
         nonlocal num_users, num_movies
-        df = pd.read_csv(path)
+        df = pd.read_parquet(path)
         for _, row in df.iterrows():
             user = int(row['user'])
             movie = int(row[label_column]) + 1
@@ -32,9 +32,9 @@ def data_retrieval(data_dir):
             num_users = max(num_users, user)
             num_movies = max(num_movies, movie)
 
-    load_train(f'{data_dir}/train_df.csv', train)
-    load_single_label_file(f'{data_dir}/val_df.csv', 'val_label', validation)
-    load_single_label_file(f'{data_dir}/test_df.csv', 'test_label', test)
+    load_train(f'{data_dir}/train_df.parquet', train)
+    load_single_label_file(f'{data_dir}/val_df.parquet', 'val_label', validation)
+    load_single_label_file(f'{data_dir}/test_df.parquet', 'test_label', test)
 
     return [train, validation, test, num_users + 1, num_movies]
 
