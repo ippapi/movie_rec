@@ -58,20 +58,27 @@ class SASREC(nn.Module):
         else:
             user_interacts = user_interacts.to(self.device)
 
-        interacts_emb = self.movie_emb(torch.LongTensor(user_interacts).to(self.device)) * (self.movie_emb.embedding_dim ** 0.5) 
-        filtered_pos = torch.tensor(np.tile(np.arange(1, user_interacts.shape[1] + 1), [user_interacts.shape[0], 1]), dtype=torch.float32) * (user_interacts != 0).to(torch.long) # Lọc padding
-        positions_emb = self.position_emb(torch.tensor(filtered_pos, dtype=torch.long).to(self.device))
+        interacts_emb = self.movie_emb(user_interacts) * (self.movie_emb.embedding_dim ** 0.5)
+
+        pos_ids = torch.arange(1, user_interacts.shape[1] + 1, device=self.device).unsqueeze(0).repeat(user_interacts.shape[0], 1)
+        filtered_pos = pos_ids * (user_interacts != 0).long()
+
+        positions_emb = self.position_emb(filtered_pos)
 
         contextualized_respresent = interacts_emb + positions_emb
         contextualized_respresent = self.dropout(contextualized_respresent)
 
         mask_length = contextualized_respresent.shape[1]
-        attention_mask = ~torch.tril(torch.ones((mask_length, mask_length), dtype=torch.bool, device=self.device))
+        attention_mask = ~torch.tril(
+            torch.ones((mask_length, mask_length), dtype=torch.bool, device=self.device)
+        )
 
         for i in range(len(self.attention_layers)):
             contextualized_respresent = torch.transpose(contextualized_respresent, 0, 1)
             query = self.attention_layernorms[i](contextualized_respresent)
-            contextualized_respresent, _ = self.attention_layers[i](query, contextualized_respresent, contextualized_respresent, attn_mask=attention_mask)
+            contextualized_respresent, _ = self.attention_layers[i](
+                query, contextualized_respresent, contextualized_respresent, attn_mask=attention_mask
+            )
 
             contextualized_respresent += query
             contextualized_respresent = torch.transpose(contextualized_respresent, 0, 1)
@@ -82,6 +89,7 @@ class SASREC(nn.Module):
         contextualized_respresent = self.last_layernorm(contextualized_respresent)
 
         return contextualized_respresent
+
 
     def forward(self, user_ids, user_interacts, pos_interacts, neg_interacts):
         contextualized_respresent = self.contextualized_respresent(user_interacts)
@@ -97,9 +105,10 @@ class SASREC(nn.Module):
 
         return pos_logits, neg_logits
 
+
     def predict(self, user_ids, user_interacts, movie_indices):
         contextualized_respresent = self.contextualized_respresent(user_interacts)
-        final_respresent = contextualized_respresent[:, -1, :]  # lấy embedding cuối
+        final_respresent = contextualized_respresent[:, -1, :]  # lấy embedding cuối của mỗi sequence
 
         movie_indices = torch.tensor(movie_indices, dtype=torch.long, device=self.device)
         movie_embs = self.movie_emb(movie_indices)
@@ -107,4 +116,3 @@ class SASREC(nn.Module):
         logits = movie_embs.matmul(final_respresent.unsqueeze(-1)).squeeze(-1)
 
         return logits
- 
