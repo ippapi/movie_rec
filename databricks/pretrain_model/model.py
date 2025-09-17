@@ -53,7 +53,12 @@ class SASREC(nn.Module):
             self.forward_layers.append(new_forward_layer)
 
     def contextualized_respresent(self, user_interacts):
-        interacts_emb = self.movie_emb(torch.LongTensor(user_interacts).to(self.device)) * (self.movie_emb.embedding_dim ** 0.5) # Scale như khuyến nghị của transformer
+        if not isinstance(user_interacts, torch.Tensor):
+            user_interacts = torch.tensor(user_interacts, dtype=torch.long, device=self.device)
+        else:
+            user_interacts = user_interacts.to(self.device)
+
+        interacts_emb = self.movie_emb(torch.LongTensor(user_interacts).to(self.device)) * (self.movie_emb.embedding_dim ** 0.5) 
         filtered_pos = torch.tensor(np.tile(np.arange(1, user_interacts.shape[1] + 1), [user_interacts.shape[0], 1]), dtype=torch.float32) * (user_interacts != 0).to(torch.long) # Lọc padding
         positions_emb = self.position_emb(torch.tensor(filtered_pos, dtype=torch.long).to(self.device))
 
@@ -81,8 +86,11 @@ class SASREC(nn.Module):
     def forward(self, user_ids, user_interacts, pos_interacts, neg_interacts):
         contextualized_respresent = self.contextualized_respresent(user_interacts)
 
-        pos_embs = self.movie_emb(torch.LongTensor(pos_interacts).to(self.device))
-        neg_embs = self.movie_emb(torch.LongTensor(neg_interacts).to(self.device))
+        pos_interacts = torch.tensor(pos_interacts, dtype=torch.long, device=self.device)
+        neg_interacts = torch.tensor(neg_interacts, dtype=torch.long, device=self.device)
+
+        pos_embs = self.movie_emb(pos_interacts)
+        neg_embs = self.movie_emb(neg_interacts)
 
         pos_logits = (contextualized_respresent * pos_embs).sum(dim=-1)
         neg_logits = (contextualized_respresent * neg_embs).sum(dim=-1)
@@ -91,11 +99,12 @@ class SASREC(nn.Module):
 
     def predict(self, user_ids, user_interacts, movie_indices):
         contextualized_respresent = self.contextualized_respresent(user_interacts)
+        final_respresent = contextualized_respresent[:, -1, :]  # lấy embedding cuối
 
-        final_respresent = contextualized_respresent[:, -1, :]
-
-        movie_embs = self.movie_emb(torch.LongTensor(movie_indices).to(self.device))
+        movie_indices = torch.tensor(movie_indices, dtype=torch.long, device=self.device)
+        movie_embs = self.movie_emb(movie_indices)
 
         logits = movie_embs.matmul(final_respresent.unsqueeze(-1)).squeeze(-1)
 
         return logits
+ 
