@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--sequence_size', default=20, type=int)
     parser.add_argument('--embedding_dims', default=50, type=int)
     parser.add_argument('--num_blocks', default=2, type=int)
-    parser.add_argument('--eval_per' default = 25, type = int)
+    parser.add_argument('--eval_per', default = 25, type = int)
     parser.add_argument('--num_epochs', default=100, type=int)
     parser.add_argument('--num_heads', default=1, type=int)
     parser.add_argument('--dropout_rate', default=0.2, type=float)
