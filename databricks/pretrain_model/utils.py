@@ -3,47 +3,46 @@ import pandas as pd
 import ast
 from collections import defaultdict
 
-def data_retrieval():
+def data_retrieval(data_dir):
     num_users = 0
-    num_courses = 0
+    num_movies = 0
     train = defaultdict(list)
     validation = defaultdict(list)
     test = defaultdict(list)
 
     def load_train(path, storage):
-        nonlocal num_users, num_courses
+        nonlocal num_users, num_movies
         df = pd.read_csv(path)
         for _, row in df.iterrows():
             user = int(row['user'])
-            courses = ast.literal_eval(row['feature'])
-            courses = [x + 1 for x in courses]
-            storage[user].extend(courses)
+            movies = ast.literal_eval(row['feature'])
+            movies = [x + 1 for x in movies]
+            storage[user].extend(movies)
             num_users = max(num_users, user)
-            if courses:
-                num_courses = max(num_courses, max(courses))
+            if movies:
+                num_movies = max(num_movies, max(movies))
 
     def load_single_label_file(path, label_column, storage):
-        nonlocal num_users, num_courses
+        nonlocal num_users, num_movies
         df = pd.read_csv(path)
         for _, row in df.iterrows():
             user = int(row['user'])
-            course = int(row[label_column]) + 1
-            storage[user].append(course)
+            movie = int(row[label_column]) + 1
+            storage[user].append(movie)
             num_users = max(num_users, user)
-            num_courses = max(num_courses, course)
+            num_movies = max(num_movies, movie)
 
-    load_train('/content/drive/MyDrive/BIG_MOOC/dataset/train_df.csv', train)
-    load_single_label_file('/content/drive/MyDrive/BIG_MOOC/dataset/val_df.csv', 'val_label', validation)
-    load_single_label_file('/content/drive/MyDrive/BIG_MOOC/dataset/test_df.csv', 'test_label', test)
+    load_train(f'{data_dir}/train_df.csv', train)
+    load_single_label_file(f'{data_dir}/val_df.csv', 'val_label', validation)
+    load_single_label_file(f'{data_dir}/test_df.csv', 'test_label', test)
 
-    return [train, validation, test, num_users + 1, num_courses]
-
+    return [train, validation, test, num_users + 1, num_movies]
 
 class Sampler:
-    def __init__(self, users_interacts, num_users=99970, num_courses=2828, batch_size=64, sequence_size=10):
+    def __init__(self, users_interacts, num_users=99970, num_movies=2828, batch_size=64, sequence_size=10):
         self.users_interacts = users_interacts
         self.num_users = num_users
-        self.num_courses = num_courses
+        self.num_movies = num_movies
         self.batch_size = batch_size
         self.sequence_size = sequence_size
         self.user_ids = np.arange(0, self.num_users, dtype=np.int32)
@@ -61,24 +60,24 @@ class Sampler:
         while len(self.users_interacts[user_id]) <= 1:
             user_id = np.random.randint(0, self.num_users)
 
-        seq_course = np.zeros([self.sequence_size], dtype=np.int32)
-        pos_course = np.zeros([self.sequence_size], dtype=np.int32)
-        neg_course = np.zeros([self.sequence_size], dtype=np.int32)
-        next_course = self.users_interacts[user_id][-1]
+        seq_movie = np.zeros([self.sequence_size], dtype=np.int32)
+        pos_movie = np.zeros([self.sequence_size], dtype=np.int32)
+        neg_movie = np.zeros([self.sequence_size], dtype=np.int32)
+        next_movie = self.users_interacts[user_id][-1]
         next_id = self.sequence_size - 1
 
-        course_set = set(self.users_interacts[user_id])
+        movie_set = set(self.users_interacts[user_id])
         for index in reversed(self.users_interacts[user_id][:-1]):
-            seq_course[next_id] = index
-            pos_course[next_id] = next_course
-            if next_course != 0:
-                neg_course[next_id] = self.random_neq(1, self.num_courses + 1, course_set)
-            next_course = index
+            seq_movie[next_id] = index
+            pos_movie[next_id] = next_movie
+            if next_movie != 0:
+                neg_movie[next_id] = self.random_neq(1, self.num_movies + 1, movie_set)
+            next_movie = index
             next_id -= 1
             if next_id == -1:
                 break
 
-        return user_id, seq_course, pos_course, neg_course
+        return user_id, seq_movie, pos_movie, neg_movie
 
     def next_batch(self):
         if self.index + self.batch_size > len(self.user_ids):

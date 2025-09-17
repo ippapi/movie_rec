@@ -20,13 +20,13 @@ class point_wise_feed_forward_net(nn.Module):
         return outputs
 
 class SASREC(nn.Module):
-    def __init__(self, num_users, num_courses, device, embedding_dims = 64, sequence_size = 50, dropout_rate = 0.1, num_blocks = 2):
+    def __init__(self, num_users, num_movies, device, embedding_dims = 64, sequence_size = 50, dropout_rate = 0.1, num_blocks = 2):
         super().__init__()
         self.num_users = num_users
-        self.num_courses = num_courses
+        self.num_movies = num_movies
         self.device = device
 
-        self.course_emb = torch.nn.Embedding(self.num_courses+1, embedding_dims, padding_idx=0)
+        self.movie_emb = torch.nn.Embedding(self.num_movies+1, embedding_dims, padding_idx=0)
         self.position_emb = torch.nn.Embedding(sequence_size+1, embedding_dims, padding_idx=0)
 
         self.dropout = torch.nn.Dropout(dropout_rate)
@@ -53,7 +53,7 @@ class SASREC(nn.Module):
             self.forward_layers.append(new_forward_layer)
 
     def contextualized_respresent(self, user_interacts):
-        interacts_emb = self.course_emb(torch.LongTensor(user_interacts).to(self.device)) * (self.course_emb.embedding_dim ** 0.5) # Scale như khuyến nghị của transformer
+        interacts_emb = self.movie_emb(torch.LongTensor(user_interacts).to(self.device)) * (self.movie_emb.embedding_dim ** 0.5) # Scale như khuyến nghị của transformer
         filtered_pos = torch.tensor(np.tile(np.arange(1, user_interacts.shape[1] + 1), [user_interacts.shape[0], 1]), dtype=torch.float32) * (user_interacts != 0).to(torch.long) # Lọc padding
         positions_emb = self.position_emb(torch.tensor(filtered_pos, dtype=torch.long).to(self.device))
 
@@ -81,21 +81,21 @@ class SASREC(nn.Module):
     def forward(self, user_ids, user_interacts, pos_interacts, neg_interacts):
         contextualized_respresent = self.contextualized_respresent(user_interacts)
 
-        pos_embs = self.course_emb(torch.LongTensor(pos_interacts).to(self.device))
-        neg_embs = self.course_emb(torch.LongTensor(neg_interacts).to(self.device))
+        pos_embs = self.movie_emb(torch.LongTensor(pos_interacts).to(self.device))
+        neg_embs = self.movie_emb(torch.LongTensor(neg_interacts).to(self.device))
 
         pos_logits = (contextualized_respresent * pos_embs).sum(dim=-1)
         neg_logits = (contextualized_respresent * neg_embs).sum(dim=-1)
 
         return pos_logits, neg_logits
 
-    def predict(self, user_ids, user_interacts, course_indices):
+    def predict(self, user_ids, user_interacts, movie_indices):
         contextualized_respresent = self.contextualized_respresent(user_interacts)
 
         final_respresent = contextualized_respresent[:, -1, :]
 
-        course_embs = self.course_emb(torch.LongTensor(course_indices).to(self.device))
+        movie_embs = self.movie_emb(torch.LongTensor(movie_indices).to(self.device))
 
-        logits = course_embs.matmul(final_respresent.unsqueeze(-1)).squeeze(-1)
+        logits = movie_embs.matmul(final_respresent.unsqueeze(-1)).squeeze(-1)
 
         return logits
