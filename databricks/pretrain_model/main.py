@@ -27,12 +27,13 @@ def main():
     parser.add_argument('--dropout_rate', default=0.2, type=float)
     parser.add_argument('--l2_emb', default=0.0, type=float)
     parser.add_argument('--device', default='cuda', type=str)
+    parser.add_argument('--k', default = 5, type = int)
     parser.add_argument('--inference_only', default=False, type=str2bool)
     parser.add_argument('--state_dict_path', default=None, type=str)
     args = parser.parse_args()
 
 
-    dataset = data_retrieval()
+    dataset = data_retrieval(args.data_dir)
     [train, _, _, num_users, num_movies] = dataset
     num_batch = (len(train) - 1) // args.batch_size + 1
 
@@ -60,11 +61,11 @@ def main():
 
     if args.inference_only:
         model.eval()
-        test_result = evaluate(model, dataset, sequence_size = args.sequence_size, k = k)
-        val_result = evaluate_validation(model, dataset, sequence_size = args.sequence_size, k = k)
+        test_result = evaluate(model, dataset, sequence_size = args.sequence_size, k = args.k)
+        val_result = evaluate_validation(model, dataset, sequence_size = args.sequence_size, k = args.k)
         print('valid (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f), test (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f)' %
-            (k, val_result["NDCG@k"], k, val_result["Hit@k"], k, val_result["Recall@k"],
-            k, test_result["NDCG@k"], k, test_result["Hit@k"], k, test_result["Recall@k"]))
+            (args.k, val_result["NDCG@k"], args.k, val_result["Hit@k"], args.k, val_result["Recall@k"],
+            args.k, test_result["NDCG@k"], args.k, test_result["Hit@k"], args.k, test_result["Recall@k"]))
         sys.exit()
 
     bce_criterion = torch.nn.BCEWithLogitsLoss()
@@ -105,11 +106,11 @@ def main():
             total_time += t1
             print('Evaluating')
             for k in [10]:
-                test_result = evaluate(model, dataset, sequence_size = 10, k = k)
-                val_result = evaluate_validation(model, dataset, sequence_size = 10, k = k)
+                test_result = evaluate(model, dataset, sequence_size = 10, k = args.k)
+                val_result = evaluate_validation(model, dataset, sequence_size = 10, k = args.k)
                 print('epoch:%d, time: %f(s), valid (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f), test (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f)' %
-                    (epoch, total_time, k, val_result["NDCG@k"], k, val_result["Hit@k"], k, val_result["Recall@k"],
-                    k, test_result["NDCG@k"], k, test_result["Hit@k"], k, test_result["Recall@k"]))
+                    (epoch, total_time, args.k, val_result["NDCG@k"], args.k, val_result["Hit@k"], args.k, val_result["Recall@k"],
+                    args.k, test_result["NDCG@k"], args.k, test_result["Hit@k"], args.k, test_result["Recall@k"]))
 
 
             if val_result["NDCG@k"] > best_val_ndcg or val_result["Hit@k"] > best_val_hr or val_result["Recall@k"] > best_val_recall or test_result["NDCG@k"] > best_test_ndcg or test_result["Hit@k"] > best_test_hr or test_result["Recall@k"] > best_test_recall:
