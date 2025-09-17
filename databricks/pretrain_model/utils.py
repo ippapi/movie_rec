@@ -33,7 +33,7 @@ def data_retrieval(data_dir):
             num_movies = max(num_movies, movie)
 
     load_train(f'{data_dir}/train.parquet', train)
-    load_single_label_file(f'{data_dir}/val.parquet', 'val_label', validation)
+    load_single_label_file(f'{data_dir}/dev.parquet', 'dev_label', validation)
     load_single_label_file(f'{data_dir}/test.parquet', 'test_label', test)
 
     return [train, validation, test, num_users + 1, num_movies]
