@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--sequence_size', default=20, type=int)
     parser.add_argument('--embedding_dims', default=50, type=int)
     parser.add_argument('--num_blocks', default=2, type=int)
+    parser.add_argument('--eval_per' default = 25, type = int)
     parser.add_argument('--num_epochs', default=100, type=int)
     parser.add_argument('--num_heads', default=1, type=int)
     parser.add_argument('--dropout_rate', default=0.2, type=float)
@@ -102,7 +103,7 @@ def main():
                 pbar.set_postfix({"loss": f"{loss.item():.4f}"})
                 pbar.update(1)
 
-        if epoch % 25 == 0:
+        if epoch % args.eval_per == 0:
             model.eval()
             t1 = time.time() - t0
             total_time += t1
