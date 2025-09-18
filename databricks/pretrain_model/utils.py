@@ -45,7 +45,7 @@ def data_retrieval(data_dir):
     return [train, validation, test, num_users + 1, num_movies, num_ratings]
 
 class Sampler:
-    def __init__(self, users_interacts, num_users=99970, num_movies=2828, num_ratings, batch_size=64, sequence_size=10):
+    def __init__(self, users_interacts, num_users, num_movies, num_ratings, batch_size=64, sequence_size=10):
         self.users_interacts = users_interacts
         self.num_users = num_users
         self.num_movies = num_movies
