@@ -48,7 +48,7 @@ def main(args):
 
         if args.save_model:
             log.info(f"Saving model to {args.save_model} ...")
-            dump.dump(args.save_model, algo=algo))
+            dump.dump(args.save_model, algo=algo)
 
     if args.mode == "eval" and args.testdir:
         log.info("Loading testing data...")
