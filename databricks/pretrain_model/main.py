@@ -46,7 +46,7 @@ def main(args):
         train_data = Dataset.load_from_df(train_df[['user_id', 'movie_id', 'rating']], reader)
         train_set = train_data.build_full_trainset()
         log.info("Training model...")
-        algo.fit(trainset)
+        algo.fit(train_set)
         log.info(f"Training done in {time.time() - start_time:.2f}s")
 
         train_predictions = algo.test(trainset.build_testset())
@@ -61,8 +61,8 @@ def main(args):
         log.info("Loading testing data...")
         test_df = pd.read_parquet(args.testdir)
         log.info("Evaluating model...")
-        testset = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
-        predictions = algo.test(testset)
+        test_set = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
+        predictions = algo.test(test_set)
         rmse = accuracy.rmse(predictions)
         log.info(f"RMSE on eval set: {rmse:.4f}")
 
