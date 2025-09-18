@@ -31,16 +31,7 @@ class FileLogger:
 def main(args):
     log = FileLogger(args.log_path)
 
-    log.info("Loading data...")
-    if args.traindir:
-        train_df = pd.read_parquet(args.traindir)
-
-    if args.testdir:
-        test_df = pd.read_parquet(args.testdir)
-
-    reader = Reader(rating_scale=(1,5))
-    train_data = Dataset.load_from_df(train_df[['user_id','movie_id','rating']], reader)
-    trainset = train_data.build_full_trainset()
+    start_time = time.time()
 
     if args.load_model:
         log.info(f"Loading model from {args.load_model} ...")
@@ -48,16 +39,20 @@ def main(args):
     else:
         algo = SVD(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
 
-    start_time = time.time()
-    log.info("Training model...")
-    algo.fit(trainset)
-    log.info(f"Training done in {time.time() - start_time:.2f}s")
+    if args.mode == "train" and args.traindir:
+        log.info("Loading training data...")
+        train_df = pd.read_parquet(args.traindir)
+        log.info("Training model...")
+        algo.fit(trainset)
+        log.info(f"Training done in {time.time() - start_time:.2f}s")
 
-    if args.save_model:
-        log.info(f"Saving model to {args.save_model} ...")
-        dump.dump(args.save_model, algo=algo)
+        if args.save_model:
+            log.info(f"Saving model to {args.save_model} ...")
+            dump.dump(args.save_model, algo=algo))
 
     if args.mode == "eval" and args.testdir:
+        log.info("Loading testing data...")
+        test_df = pd.read_parquet(args.testdir)
         log.info("Evaluating model...")
         testset = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
         predictions = algo.test(testset)
