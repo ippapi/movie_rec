@@ -31,14 +31,6 @@ class CustomLogger:
     def debug(self, msg):
         self.logger.debug(msg)
 
-def get_top_k(predictions, k=10):
-    top_k = defaultdict(list)
-    for uid, iid, true_r, est, _ in predictions:
-        top_k[uid].append((iid, est))
-    for uid in top_k:
-        top_k[uid] = sorted(top_k[uid], key=lambda x: x[1], reverse=True)[:k]
-    return top_k
-
 def main(args):
     log = CustomLogger()
     logging.info("Loading data...")
@@ -74,7 +66,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--traindir", type = str, required=True)
-    parser.add_argument("--evaldir", type = str)
+    parser.add_argument("--testdir", type = str)
     parser.add_argument("--save_model", type = str, default=None)
     parser.add_argument("--load_model", type = str, default=None)
     parser.add_argument("--log_path", type = str)
