@@ -49,7 +49,7 @@ def main(args):
         algo.fit(train_set)
         log.info(f"Training done in {time.time() - start_time:.2f}s")
 
-        train_predictions = algo.test(trainset.build_testset())
+        train_predictions = algo.test(train_set.build_testset())
         train_rmse = accuracy.rmse(train_predictions)
         log.info(f"RMSE on training set: {train_rmse:.4f}")
 
