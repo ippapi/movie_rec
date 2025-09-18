@@ -4,7 +4,7 @@ import numpy as np
 import random
 
 def evaluate(model, dataset, sequence_size = 10, k = 1):
-    [train, validation, test, num_users, num_movies] = copy.deepcopy(dataset)
+    [train, validation, test, num_users, num_movies, num_ratings] = copy.deepcopy(dataset)
 
     NDCG = 0.0
     HIT = 0.0
@@ -18,11 +18,14 @@ def evaluate(model, dataset, sequence_size = 10, k = 1):
             continue
 
         seq_movie = np.zeros([sequence_size], dtype=np.int32)
+        seq_rating = np.zeros([sequence_size], dtype=np.int32)
         next_index = sequence_size - 1
-        seq_movie[next_index] = validation[user][0] if len(validation[user]) > 0 else 0
+        seq_movie[next_index] = validation[user][0][0] if len(validation[user]) > 0 else 0
+        seq_rating[next_index] = validation[user][0][1] if len(validation[user]) > 0 else 0
         next_index -= 1
-        for i in reversed(train[user]):
-            seq_movie[next_index] = i
+        for movie, rating in reversed(train[user]):
+            seq_movie[next_index] = movie
+            seq_rating[nex_index] = rating
             next_index -= 1
             if next_index == -1:
                 break
@@ -36,7 +39,7 @@ def evaluate(model, dataset, sequence_size = 10, k = 1):
         num_needed = 100 - len(predict_movies)
         predict_movies += random.sample(available_movies, min(num_needed, len(available_movies)))
 
-        predictions = -model.predict(*[np.array(l) for l in [[user], [seq_movie], predict_movies]])
+        predictions = -model.predict(*[np.array(l) for l in [[user], [seq_movie], [seq_rating], predict_movies]])
         predictions = predictions[0]
 
         rank = (predictions > predictions[0]).sum().item()
@@ -79,9 +82,11 @@ def evaluate_validation(model, dataset, sequence_size = 10, k = 1):
             continue
 
         seq_movie = np.zeros([sequence_size], dtype=np.int32)
+        seq_rating = np.zeros([sequence_size], dtype=np.int32)
         next_index = sequence_size - 1
-        for i in reversed(train[user]):
-            seq_movie[next_index] = i
+        for movie, rating in reversed(train[user]):
+            seq_movie[next_index] = movie
+            seq_rating[next_index] = rating
             next_index -= 1
             if next_index == -1:
                 break
@@ -95,7 +100,7 @@ def evaluate_validation(model, dataset, sequence_size = 10, k = 1):
         num_needed = 100 - len(predict_movies)
         predict_movies += random.sample(available_movies, min(num_needed, len(available_movies)))
 
-        predictions = -model.predict(*[np.array(l) for l in [[user], [seq_movie], predict_movies]])
+        predictions = -model.predict(*[np.array(l) for l in [[user], [seq_movie], [seq_rating], predict_movies]])
         predictions = predictions[0]
 
         rank = (predictions > predictions[0]).sum().item()

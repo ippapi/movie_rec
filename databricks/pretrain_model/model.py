@@ -20,14 +20,16 @@ class point_wise_feed_forward_net(nn.Module):
         return outputs
 
 class SASREC(nn.Module):
-    def __init__(self, num_users, num_movies, device, embedding_dims = 64, sequence_size = 50, dropout_rate = 0.1, num_blocks = 2):
+    def __init__(self, num_users, num_movies, num_ratings, device, embedding_dims = 64, sequence_size = 50, dropout_rate = 0.1, num_blocks = 2):
         super().__init__()
         self.num_users = num_users
         self.num_movies = num_movies
+        self.num_ratings = num_ratings
         self.device = device
 
         self.movie_emb = torch.nn.Embedding(self.num_movies+1, embedding_dims, padding_idx=0)
         self.position_emb = torch.nn.Embedding(sequence_size+1, embedding_dims, padding_idx=0)
+        self.rating_emb = torch.nn.Embedding(self.num_ratings, embedding_dims, padding_idx = 0)
 
         self.dropout = torch.nn.Dropout(dropout_rate)
 
@@ -52,20 +54,26 @@ class SASREC(nn.Module):
             new_forward_layer = point_wise_feed_forward_net(embedding_dims, dropout_rate)
             self.forward_layers.append(new_forward_layer)
 
-    def contextualized_respresent(self, user_interacts):
+    def contextualized_respresent(self, user_interacts, user_ratings):
         if not isinstance(user_interacts, torch.Tensor):
             user_interacts = torch.tensor(user_interacts, dtype=torch.long, device=self.device)
         else:
             user_interacts = user_interacts.to(self.device)
 
+        if not isinstance(user_ratings, torch.Tensor):
+            user_ratings = torch.tensor(user_ratings, dtype=torch.long, device=self.device)
+        else:
+            user_ratings = user_ratings.to(self.device)
+
         interacts_emb = self.movie_emb(user_interacts) * (self.movie_emb.embedding_dim ** 0.5)
+        ratings_emb = self.rating_emb(user_ratings)
 
         pos_ids = torch.arange(1, user_interacts.shape[1] + 1, device=self.device).unsqueeze(0).repeat(user_interacts.shape[0], 1)
         filtered_pos = pos_ids * (user_interacts != 0).long()
 
         positions_emb = self.position_emb(filtered_pos)
 
-        contextualized_respresent = interacts_emb + positions_emb
+        contextualized_respresent = interacts_emb + positions_emb + ratings_emb
         contextualized_respresent = self.dropout(contextualized_respresent)
 
         mask_length = contextualized_respresent.shape[1]
@@ -91,8 +99,8 @@ class SASREC(nn.Module):
         return contextualized_respresent
 
 
-    def forward(self, user_ids, user_interacts, pos_interacts, neg_interacts):
-        contextualized_respresent = self.contextualized_respresent(user_interacts)
+    def forward(self, user_ids, user_interacts, user_ratings, pos_interacts, neg_interacts):
+        contextualized_respresent = self.contextualized_respresent(user_interacts, user_ratings)
 
         pos_interacts = torch.tensor(pos_interacts, dtype=torch.long, device=self.device)
         neg_interacts = torch.tensor(neg_interacts, dtype=torch.long, device=self.device)
@@ -106,8 +114,8 @@ class SASREC(nn.Module):
         return pos_logits, neg_logits
 
 
-    def predict(self, user_ids, user_interacts, movie_indices):
-        contextualized_respresent = self.contextualized_respresent(user_interacts)
+    def predict(self, user_ids, user_interacts, user_ratings, movie_indices):
+        contextualized_respresent = self.contextualized_respresent(user_interacts, user_ratings)
         final_respresent = contextualized_respresent[:, -1, :]  # lấy embedding cuối của mỗi sequence
 
         movie_indices = torch.tensor(movie_indices, dtype=torch.long, device=self.device)

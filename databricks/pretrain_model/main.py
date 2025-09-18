@@ -37,7 +37,7 @@ def main():
 
 
     dataset = data_retrieval(args.data_dir)
-    [train, _, _, num_users, num_movies] = dataset
+    [train, _, _, num_users, num_movies, num_ratings] = dataset
     num_batch = (len(train) - 1) // args.batch_size + 1
 
     f = open(args.log_dir, 'w')
@@ -45,8 +45,8 @@ def main():
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    sampler = Sampler(train, num_users, num_movies, batch_size=args.batch_size, sequence_size=args.sequence_size)
-    model = SASREC(num_users, num_movies, device, embedding_dims = args.embedding_dims, sequence_size = args.sequence_size, dropout_rate = args.dropout_rate, num_blocks = args.num_blocks).to(device)
+    sampler = Sampler(train, num_users, num_movies, num_ratings, batch_size=args.batch_size, sequence_size=args.sequence_size)
+    model = SASREC(num_users, num_movies, num_ratings, device, embedding_dims = args.embedding_dims, sequence_size = args.sequence_size, dropout_rate = args.dropout_rate, num_blocks = args.num_blocks).to(device)
     for _, param in model.named_parameters():
         try:
             torch.nn.init.xavier_normal_(param.data)
@@ -54,6 +54,7 @@ def main():
             pass
     model.position_emb.weight.data[0, :] = 0
     model.movie_emb.weight.data[0, :] = 0
+    model.rating_emb.weight.data[0, :] = 0
     model.train()
 
     epoch_start_idx = 1
@@ -84,10 +85,10 @@ def main():
 
         with tqdm(total=num_batch, desc=f"Epoch {epoch}/{args.num_epochs}", unit="batch") as pbar:
             for step in range(num_batch):
-                user, seq_movie, pos_movie, neg_movie = sampler.next_batch()
-                user, seq_movie, pos_movie, neg_movie = np.array(user), np.array(seq_movie), np.array(pos_movie), np.array(neg_movie)
+                user, seq_movie, seq_rating, pos_movie, pos_rating, neg_movie = sampler.next_batch()
+                user, seq_movie, seq_rating, pos_movie, pos_rating, neg_movie = np.array(user), np.array(seq_movie), np.array(seq.rating), np.array(pos_movie), np.array(pos_rating), np.array(neg_movie)
 
-                pos_logits, neg_logits = model(user, seq_movie, pos_movie, neg_movie)
+                pos_logits, neg_logits = model(user, seq_movie, seq_rating, pos_movie, neg_movie)
                 pos_labels, neg_labels = torch.ones(pos_logits.shape, device=device), torch.zeros(neg_logits.shape, device=device)
 
                 adam_optimizer.zero_grad()
