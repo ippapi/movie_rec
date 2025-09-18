@@ -41,7 +41,7 @@ def main(args):
         test_df = pd.read_parquet(args.testdir)
 
     reader = Reader(rating_scale=(1,5))
-    train_data = Dataset.load_from_df(train_df[['user_idx','item_idx','rating']], reader)
+    train_data = Dataset.load_from_df(train_df[['user_id','movie_id','rating']], reader)
     trainset = train_data.build_full_trainset()
 
     if args.load_model:
