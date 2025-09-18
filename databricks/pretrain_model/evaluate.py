@@ -30,9 +30,9 @@ def evaluate(model, dataset, sequence_size = 10, k = 1):
             if next_index == -1:
                 break
 
-        interacted_movies = set(train[user])
+        interacted_movies = set([m for m, r in train[user]])
         interacted_movies.add(0)
-        predict_movies = [test[user][0]]
+        predict_movies = [test[user][0][0]]
 
         all_movies = set(range(1, num_movies + 1))
         available_movies = list(all_movies - interacted_movies - set(predict_movies))
@@ -96,9 +96,9 @@ def evaluate_validation(model, dataset, sequence_size = 10, k = 1):
             if next_index == -1:
                 break
 
-        interacted_movies = set(train[user])
+        interacted_movies = set([m for m, r in train[user]])
         interacted_movies.add(0)
-        predict_movies = [validation[user][0]]
+        predict_movies = [validation[user][0][0]]
 
         all_movies = set(range(1, num_movies + 1))
         available_movies = list(all_movies - interacted_movies - set(predict_movies))
