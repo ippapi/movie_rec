@@ -35,7 +35,8 @@ def main(args):
 
     if args.load_model:
         log.info(f"Loading model from {args.load_model} ...")
-        algo, _ = dump.load(args.load_model)
+        res = dump.load(args.load_model)
+        print(res)
     else:
         algo = SVD(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
 
