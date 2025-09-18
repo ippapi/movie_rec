@@ -37,7 +37,15 @@ def main(args):
         log.info(f"Loading model from {args.load_model} ...")
         _, algo = dump.load(args.load_model)
     else:
-        algo = SVD(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
+        if args.model_name.lower() == "svd":
+            algo = SVD(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
+        elif args.model_name.lower() == "nmf":
+            algo = NMF(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
+        elif args.model_name.lower() == "knn":
+            algo = KNNWithMeans(k=args.k_neighbors, sim_options={'name': 'cosine', 'user_based': True})
+        else:
+            raise ValueError(f"Unknown model_name: {args.model_name}")
+        log.info(f"Created new model: {args.model_name}")
 
     if args.mode == "train" and args.traindir:
         log.info("Loading training data...")
@@ -70,6 +78,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--traindir", type=str)
     parser.add_argument("--testdir", type=str)
+    parser.add_argument("--model_name", default = "svd", choices = ["svd", "nmf", "knn"])
     parser.add_argument("--save_model", type=str, default=None)
     parser.add_argument("--load_model", type=str, default=None)
     parser.add_argument("--log_path", type=str, default=None)
@@ -77,6 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_factor", type=int, default=20)
     parser.add_argument("--n_epoch", type=int, default=15)
     parser.add_argument("--reg_all", type=float, default=0.1)
+    parser.add_argument("--k_neighbors", type = int, default = 20)
 
     args = parser.parse_args()
     main(args)
