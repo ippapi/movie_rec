@@ -81,7 +81,6 @@ class Sampler:
             seq_rating[next_id] = rating
 
             pos_movie[next_id] = next_movie
-            pos_rating[next_id] = next_rating
 
             if next_movie != 0:
                 neg_movie[next_id] = self.random_neq(1, self.num_movies + 1, movie_set)
@@ -91,7 +90,7 @@ class Sampler:
             if next_id == -1:
                 break
 
-        return user_id, seq_movie, seq_rating, pos_movie, pos_rating, neg_movie
+        return user_id, seq_movie, seq_rating, pos_movie, neg_movie
 
     def next_batch(self):
         if self.index + self.batch_size > len(self.user_ids):
