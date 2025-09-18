@@ -40,7 +40,7 @@ def main(args):
         if args.model_name.lower() == "svd":
             algo = SVD(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
         elif args.model_name.lower() == "nmf":
-            algo = NMF(n_factors=args.n_factor, n_epochs=args.n_epoch, reg_all=args.reg_all)
+            algo = NMF(n_factors=args.n_factor, n_epochs=args.n_epoch)
         elif args.model_name.lower() == "knn":
             algo = KNNWithMeans(k=args.k_neighbors, sim_options={'name': 'cosine', 'user_based': True})
         else:
