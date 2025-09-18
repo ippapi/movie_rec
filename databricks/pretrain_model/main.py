@@ -21,16 +21,18 @@ class CustomLogger:
                 fh = logging.FileHandler(logfile)
                 fh.setFormatter(logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', datefmt='%H:%M'))
                 self.logger.addHandler(fh)
-
     def info(self, msg):
         self.logger.info(msg)
+        self.flush()
     def warning(self, msg):
         self.logger.warning(msg)
+        self.flush()
     def error(self, msg):
         self.logger.error(msg)
-    def debug(self, msg):
-        self.logger.debug(msg)
-
+        self.flush()
+    def flush(self):
+        for h in self.logger.handlers:
+            h.flush()
 
 def main(args):
     log = CustomLogger(args.log_path)
