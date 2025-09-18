@@ -34,8 +34,11 @@ class CustomLogger:
 def main(args):
     log = CustomLogger()
     logging.info("Loading data...")
-    train_df = pd.read_parquet(args.traindir)
-    test_df = pd.read_parquet(args.testdir)
+    if args.traindir:
+        train_df = pd.read_parquet(args.traindir)
+
+    if args.testdir:
+        test_df = pd.read_parquet(args.testdir)
 
     reader = Reader(rating_scale=(1,5))
     train_data = Dataset.load_from_df(train_df[['user_idx','item_idx','rating']], reader)
