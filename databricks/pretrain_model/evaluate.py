@@ -73,7 +73,7 @@ def evaluate(model, dataset, sequence_size = 10, k = 1):
         }
 
 def evaluate_validation(model, dataset, sequence_size = 10, k = 1):
-    [train, validation, test, num_users, num_movies] = copy.deepcopy(dataset)
+    [train, validation, test, num_users, num_movies, num_ratings] = copy.deepcopy(dataset)
 
     NDCG = 0.0
     HIT = 0.0
