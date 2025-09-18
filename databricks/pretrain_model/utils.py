@@ -72,7 +72,7 @@ class Sampler:
         neg_movie = np.zeros([self.sequence_size], dtype=np.int32)
         seq_rating = np.zeros([self.sequence_size], dtype=np.int32)
         next_movie = self.users_interacts[user_id][-1][0]
-        next_rating = self.users_interact[user_id][-1][1]
+        next_rating = self.users_interacts[user_id][-1][1]
         next_id = self.sequence_size - 1
 
         movie_set = {m for m, _ in self.users_interacts[user_id]}
