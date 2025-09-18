@@ -42,9 +42,16 @@ def main(args):
     if args.mode == "train" and args.traindir:
         log.info("Loading training data...")
         train_df = pd.read_parquet(args.traindir)
+        reader = Reader(rating_scale=(1,5))
+        train_data = Dataset.load_from_df(train_df[['user_id', 'movie_id', 'rating']], reader)
+        train_set = train_data.build_full_trainset()
         log.info("Training model...")
         algo.fit(trainset)
         log.info(f"Training done in {time.time() - start_time:.2f}s")
+
+        train_predictions = algo.test(trainset.build_testset())
+        train_rmse = accuracy.rmse(train_predictions)
+        log.info(f"RMSE on training set: {train_rmse:.4f}")
 
         if args.save_model:
             log.info(f"Saving model to {args.save_model} ...")
