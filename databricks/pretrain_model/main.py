@@ -7,32 +7,33 @@ from surprise import dump
 from surprise import accuracy
 from collections import defaultdict
 
-class CustomLogger:
-    def __init__(self, name=None, level=logging.INFO):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
+import logging
 
+class CustomLogger:
+    def __init__(self, logfile=None, level=logging.INFO):
+        self.logger = logging.getLogger("custom_logger")
+        self.logger.setLevel(level)
         if not self.logger.handlers:
             ch = logging.StreamHandler()
-            formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s',
-                                          datefmt='%H:%M')
-            ch.setFormatter(formatter)
+            ch.setFormatter(logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', datefmt='%H:%M'))
             self.logger.addHandler(ch)
+            if logfile:
+                fh = logging.FileHandler(logfile)
+                fh.setFormatter(logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', datefmt='%H:%M'))
+                self.logger.addHandler(fh)
 
     def info(self, msg):
         self.logger.info(msg)
-
     def warning(self, msg):
         self.logger.warning(msg)
-
     def error(self, msg):
         self.logger.error(msg)
-
     def debug(self, msg):
         self.logger.debug(msg)
 
+
 def main(args):
-    log = CustomLogger()
+    log = CustomLogger(args.log_path)
     logging.info("Loading data...")
     if args.traindir:
         train_df = pd.read_parquet(args.traindir)
