@@ -86,7 +86,7 @@ def main():
         with tqdm(total=num_batch, desc=f"Epoch {epoch}/{args.num_epochs}", unit="batch") as pbar:
             for step in range(num_batch):
                 user, seq_movie, seq_rating, pos_movie, neg_movie = sampler.next_batch()
-                user, seq_movie, seq_rating, pos_movie, neg_movie = np.array(user), np.array(seq_movie), np.array(seq.rating), np.array(pos_movie), np.array(neg_movie)
+                user, seq_movie, seq_rating, pos_movie, neg_movie = np.array(user), np.array(seq_movie), np.array(seq_rating), np.array(pos_movie), np.array(neg_movie)
 
                 pos_logits, neg_logits = model(user, seq_movie, seq_rating, pos_movie, neg_movie)
                 pos_labels, neg_labels = torch.ones(pos_logits.shape, device=device), torch.zeros(neg_logits.shape, device=device)
