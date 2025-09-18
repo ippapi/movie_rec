@@ -39,7 +39,12 @@ def evaluate(model, dataset, sequence_size = 10, k = 1):
         num_needed = 100 - len(predict_movies)
         predict_movies += random.sample(available_movies, min(num_needed, len(available_movies)))
 
-        predictions = -model.predict(*[np.array(l) for l in [[user], [seq_movie], [seq_rating], predict_movies]])
+        predictions = -model.predict(
+            np.array([user]),                
+            np.array([seq_movie]),           
+            np.array([seq_rating]),          
+            np.array(predict_movies)         
+        )
         predictions = predictions[0]
 
         rank = (predictions > predictions[0]).sum().item()
@@ -100,7 +105,12 @@ def evaluate_validation(model, dataset, sequence_size = 10, k = 1):
         num_needed = 100 - len(predict_movies)
         predict_movies += random.sample(available_movies, min(num_needed, len(available_movies)))
 
-        predictions = -model.predict(*[np.array(l) for l in [[user], [seq_movie], [seq_rating], predict_movies]])
+        predictions = -model.predict(
+            np.array([user]),                
+            np.array([seq_movie]),           
+            np.array([seq_rating]),          
+            np.array(predict_movies)         
+        )
         predictions = predictions[0]
 
         rank = (predictions > predictions[0]).sum().item()

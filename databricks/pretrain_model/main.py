@@ -110,7 +110,7 @@ def main():
             total_time += t1
             print('Evaluating')
             for k in [args.k]:
-                test_result = evaluate(model, dataset, sequence_size = 10, k = k)
+                test_result = evaluate(model, dataset, sequence_size = args.sequence_size, k = k)
                 val_result = evaluate_validation(model, dataset, sequence_size = 10, k = k)
                 print('epoch:%d, time: %f(s), valid (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f), test (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f)' %
                     (epoch, total_time, k, val_result["NDCG@k"], k, val_result["Hit@k"], args.k, val_result["Recall@k"],
