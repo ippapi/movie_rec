@@ -1,7 +1,7 @@
 import argparse
 import pandas as pd
 import time
-from surprise import Dataset, Reader, SVD
+from surprise import Dataset, Reader, SVD, NMF, KNNWithMeans
 from surprise import dump
 from surprise import accuracy
 import sys
