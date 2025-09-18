@@ -29,7 +29,7 @@ class SASREC(nn.Module):
 
         self.movie_emb = torch.nn.Embedding(self.num_movies+1, embedding_dims, padding_idx=0)
         self.position_emb = torch.nn.Embedding(sequence_size+1, embedding_dims, padding_idx=0)
-        self.rating_emb = torch.nn.Embedding(self.num_ratings, embedding_dims, padding_idx = 0)
+        self.rating_emb = torch.nn.Embedding(self.num_ratings + 1, embedding_dims, padding_idx = 0)
 
         self.dropout = torch.nn.Dropout(dropout_rate)
 
