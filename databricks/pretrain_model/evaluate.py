@@ -25,7 +25,7 @@ def evaluate(model, dataset, sequence_size = 10, k = 1):
         next_index -= 1
         for movie, rating in reversed(train[user]):
             seq_movie[next_index] = movie
-            seq_rating[nex_index] = rating
+            seq_rating[next_index] = rating
             next_index -= 1
             if next_index == -1:
                 break
