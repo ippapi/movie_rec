@@ -1,143 +1,88 @@
-import os
-import time
-import torch
 import argparse
-import numpy as np
-from tqdm import tqdm
+import pandas as pd
+import time
+import logging
+from surprise import Dataset, Reader, SVD
+from surprise import dump
+from surprise import accuracy
+from collections import defaultdict
 
-from model import SASREC
-from utils import *
-from evaluate import *
+class CustomLogger:
+    def __init__(self, name=None, level=logging.INFO):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
 
-def str2bool(s):
-    if s not in {'false', 'true'}:
-        raise ValueError('Not a valid boolean string')
-    return s == 'true'
+        if not self.logger.handlers:
+            ch = logging.StreamHandler()
+            formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s',
+                                          datefmt='%H:%M')
+            ch.setFormatter(formatter)
+            self.logger.addHandler(ch)
 
-def main():
+    def info(self, msg):
+        self.logger.info(msg)
+
+    def warning(self, msg):
+        self.logger.warning(msg)
+
+    def error(self, msg):
+        self.logger.error(msg)
+
+    def debug(self, msg):
+        self.logger.debug(msg)
+
+def get_top_k(predictions, k=10):
+    top_k = defaultdict(list)
+    for uid, iid, true_r, est, _ in predictions:
+        top_k[uid].append((iid, est))
+    for uid in top_k:
+        top_k[uid] = sorted(top_k[uid], key=lambda x: x[1], reverse=True)[:k]
+    return top_k
+
+def main(args):
+    log = CustomLogger()
+    logging.info("Loading data...")
+    train_df = pd.read_parquet(args.traindir)
+    test_df = pd.read_parquet(args.testdir)
+
+    reader = Reader(rating_scale=(1,5))
+    train_data = Dataset.load_from_df(train_df[['user_idx','item_idx','rating']], reader)
+    trainset = train_data.build_full_trainset()
+
+    if args.load_model:
+        logging.info(f"Loading model from {args.load_model} ...")
+        algo, _ = dump.load(args.load_model)
+    else:
+        algo = SVD(n_factors=20, n_epochs=15, reg_all=0.1)
+
+    start_time = time.time()
+    logging.info("Training model...")
+    algo.fit(trainset)
+    logging.info(f"Training done in {time.time() - start_time:.2f}s")
+
+    if args.save_model:
+        logging.info(f"Saving model to {args.save_model} ...")
+        dump.dump(args.save_model, algo=algo)
+
+    if args.mode == "eval" and not test_df.empty:
+        logging.info("Evaluating model...")
+        testset = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
+        predictions = algo.test(testset)
+        rmse = accuracy.rmse(predictions)
+        logging.info(f"RMSE on eval set: {rmse:.4f}")
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type = str)
-    parser.add_argument('--model_checkpoint_dir', type = str)
-    parser.add_argument('--log_dir', type = str)
-    parser.add_argument('--batch_size', default=128, type=int)
-    parser.add_argument('--learning_rate', default=0.001, type=float)
-    parser.add_argument('--sequence_size', default=20, type=int)
-    parser.add_argument('--embedding_dims', default=50, type=int)
-    parser.add_argument('--num_blocks', default=2, type=int)
-    parser.add_argument('--eval_per', default = 25, type = int)
-    parser.add_argument('--num_epochs', default=100, type=int)
-    parser.add_argument('--num_heads', default=1, type=int)
-    parser.add_argument('--dropout_rate', default=0.2, type=float)
-    parser.add_argument('--l2_emb', default=0.0, type=float)
-    parser.add_argument('--device', default='cuda', type=str)
-    parser.add_argument('--k', default = 5, type = int)
-    parser.add_argument('--inference_only', default=False, type=str2bool)
-    parser.add_argument('--state_dict_path', default=None, type=str)
+    parser.add_argument("--traindir", type = str, required=True)
+    parser.add_argument("--evaldir", type = str)
+    parser.add_argument("--save_model", type = str, default=None)
+    parser.add_argument("--load_model", type = str, default=None)
+    parser.add_argument("--log_path", type = str)
+    parser.add_argument("--mode", type=str, default="train", choices=["train","eval"])
+    parser.add_argument("--n_factor", default = 20, type = int)
+    parser.add_argument("--n_epoch", default = 15, type = int)
+    parser.add_argument("--rag_all", default = 0.1, type = float)
+
     args = parser.parse_args()
 
-
-    dataset = data_retrieval(args.data_dir)
-    [train, _, _, num_users, num_movies, num_ratings] = dataset
-    num_batch = (len(train) - 1) // args.batch_size + 1
-
-    f = open(args.log_dir, 'w')
-    f.write('epoch (val_ndcg, val_hit, val_recall) (test_ndcg, test_hit, test_recall)\n')
-
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-
-    sampler = Sampler(train, num_users, num_movies, num_ratings, batch_size=args.batch_size, sequence_size=args.sequence_size)
-    model = SASREC(num_users, num_movies, num_ratings, device, embedding_dims = args.embedding_dims, sequence_size = args.sequence_size, dropout_rate = args.dropout_rate, num_blocks = args.num_blocks).to(device)
-    for _, param in model.named_parameters():
-        try:
-            torch.nn.init.xavier_normal_(param.data)
-        except:
-            pass
-    model.position_emb.weight.data[0, :] = 0
-    model.movie_emb.weight.data[0, :] = 0
-    model.rating_emb.weight.data[0, :] = 0
-    model.train()
-
-    epoch_start_idx = 1
-    if args.state_dict_path is not None:
-        model.load_state_dict(torch.load(args.state_dict_path, map_location=torch.device(device)))
-        tail = args.state_dict_path[args.state_dict_path.find('epoch=') + 6:]
-        epoch_start_idx = int(tail[:tail.find('.')]) + 1
-
-    if args.inference_only:
-        model.eval()
-        test_result = evaluate(model, dataset, sequence_size = args.sequence_size, k = args.k)
-        val_result = evaluate_validation(model, dataset, sequence_size = args.sequence_size, k = args.k)
-        print('valid (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f), test (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f)' %
-            (args.k, val_result["NDCG@k"], args.k, val_result["Hit@k"], args.k, val_result["Recall@k"],
-            args.k, test_result["NDCG@k"], args.k, test_result["Hit@k"], args.k, test_result["Recall@k"]))
-        sys.exit()
-
-    bce_criterion = torch.nn.BCEWithLogitsLoss()
-    adam_optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, betas=(0.9, 0.98))
-    best_val_ndcg, best_val_hr, best_val_recall = 0.0, 0.0, 0.0
-    best_test_ndcg, best_test_hr, best_test_recall = 0.0, 0.0, 0.0
-    total_time = 0.0
-    t0 = time.time()
-
-    for epoch in range(epoch_start_idx, args.num_epochs + 1):
-        if args.inference_only: 
-            break
-
-        with tqdm(total=num_batch, desc=f"Epoch {epoch}/{args.num_epochs}", unit="batch") as pbar:
-            for step in range(num_batch):
-                user, seq_movie, seq_rating, pos_movie, neg_movie = sampler.next_batch()
-                user, seq_movie, seq_rating, pos_movie, neg_movie = np.array(user), np.array(seq_movie), np.array(seq_rating), np.array(pos_movie), np.array(neg_movie)
-
-                pos_logits, neg_logits = model(user, seq_movie, seq_rating, pos_movie, neg_movie)
-                pos_labels, neg_labels = torch.ones(pos_logits.shape, device=device), torch.zeros(neg_logits.shape, device=device)
-
-                adam_optimizer.zero_grad()
-                indices = np.where(pos_movie != 0)
-                loss = bce_criterion(pos_logits[indices], pos_labels[indices])
-                loss += bce_criterion(neg_logits[indices], neg_labels[indices])
-                for param in model.movie_emb.parameters():
-                    loss += args.l2_emb * torch.norm(param)
-
-                loss.backward()
-                adam_optimizer.step()
-
-                pbar.set_postfix({"loss": f"{loss.item():.4f}"})
-                pbar.update(1)
-
-        if epoch % args.eval_per == 0:
-            model.eval()
-            t1 = time.time() - t0
-            total_time += t1
-            print('Evaluating')
-            for k in [args.k]:
-                test_result = evaluate(model, dataset, sequence_size = args.sequence_size, k = k)
-                val_result = evaluate_validation(model, dataset, sequence_size = 10, k = k)
-                print('epoch:%d, time: %f(s), valid (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f), test (NDCG@%d: %.4f, Hit@%d: %.4f, Recall@%d: %.4f)' %
-                    (epoch, total_time, k, val_result["NDCG@k"], k, val_result["Hit@k"], args.k, val_result["Recall@k"],
-                    k, test_result["NDCG@k"], k, test_result["Hit@k"], k, test_result["Recall@k"]))
-
-
-            if val_result["NDCG@k"] > best_val_ndcg or val_result["Hit@k"] > best_val_hr or val_result["Recall@k"] > best_val_recall or test_result["NDCG@k"] > best_test_ndcg or test_result["Hit@k"] > best_test_hr or test_result["Recall@k"] > best_test_recall:
-                best_val_ndcg = max(val_result["NDCG@k"], best_val_ndcg)
-                best_val_hr = max(val_result["Hit@k"], best_val_hr)
-                best_val_recall = max(val_result["Recall@k"], best_val_recall)
-                best_test_ndcg = max(test_result["NDCG@k"], best_test_ndcg)
-                best_test_hr = max(test_result["Hit@k"], best_test_hr)
-                best_test_recall = max(test_result["Recall@k"], best_test_recall)
-                folder = args.model_checkpoint_dir
-                fname = 'SASRec.epoch={}.learning_rate={}.layer={}.head={}.embedding_dims={}.sequence_size={}.pth'
-                fname = fname.format(epoch, args.learning_rate, args.num_blocks, args.num_heads, args.embedding_dims, args.sequence_size)
-                torch.save(model.state_dict(), os.path.join(folder, fname))
-
-            f.write(str(epoch) + ' ' + str(val_result) + ' ' + str(test_result) + '\n')
-            f.flush()
-            t0 = time.time()
-            model.train()
-
-    f.close()
-    print("Done")
-
-if __name__ == '__main__':
-    main()
-
-    
+    main(args)
