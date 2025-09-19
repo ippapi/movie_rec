@@ -41,13 +41,13 @@ def get_top_n(predictions, n=10):
     
     return top_n
 
-def precision_recall_at_k(predictions, k=10, threshold=4.0):
+def recall_ndcg_at_k(predictions, k=10, threshold=4.0):
     user_est_true = defaultdict(list)
     for uid, iid, true_r, est, _ in predictions:
         user_est_true[uid].append((est, true_r))
     
-    precisions = dict()
     recalls = dict()
+    ndcgs = dict()
     
     for uid, user_ratings in user_est_true.items():
         user_ratings.sort(key=lambda x: x[0], reverse=True)
@@ -56,11 +56,17 @@ def precision_recall_at_k(predictions, k=10, threshold=4.0):
         n_rel = sum((true_r >= threshold) for (_, true_r) in user_ratings)
         n_rel_and_rec_k = sum((true_r >= threshold) for (_, true_r) in top_k)
         
-        precisions[uid] = n_rel_and_rec_k / k if k != 0 else 0
         recalls[uid] = n_rel_and_rec_k / n_rel if n_rel != 0 else 0
+        
+        rels = [1 if true_r >= threshold else 0 for (_, true_r) in top_k]
+        dcg = sum(rel / math.log2(idx + 2) for idx, rel in enumerate(rels))
+        
+        ideal_rels = [1] * min(n_rel, k)
+        idcg = sum(rel / math.log2(idx + 2) for idx, rel in enumerate(ideal_rels))
+        
+        ndcgs[uid] = dcg / idcg if idcg > 0 else 0
     
-    return precisions, recalls
-
+    return recalls, ndcgs
 
 
 def main(args):
@@ -107,9 +113,9 @@ def main(args):
         test_set = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
         predictions = algo.test(test_set)
         rmse = accuracy.rmse(predictions)
-        precisions, recalls = precision_recall_at_k(predictions, k = args.k, threshold = args.threshold)
+        recalls, ndcgs = precision_recall_at_k(predictions, k = args.k, threshold = args.threshold)
         log.info(f"RMSE on eval set: {rmse:.4f}")
-        log.info(f"Average Precision@{args.k}: {sum(precisions.values()) / len(precisions)}")
+        log.info(f"Average NDCG@{args.k}: {sum(ndcgs.values()) / len(ndcgs)}")
         log.info(f"Average Recall@{args.k}: {sum(recalls.values()) / len(recalls)}")
 
 if __name__ == "__main__":
