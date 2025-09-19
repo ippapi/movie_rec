@@ -1,6 +1,7 @@
 import argparse
 import pandas as pd
 import time
+from collections import defaultDict
 from surprise import Dataset, Reader, SVD, NMF, KNNWithMeans
 from surprise import dump
 from surprise import accuracy
@@ -27,6 +28,40 @@ class FileLogger:
 
     def error(self, msg):
         self._log("ERROR", msg)
+
+
+def get_top_n(predictions, n=10):
+    top_n = defaultdict(list)
+    for uid, iid, true_r, est, _ in predictions:
+        top_n[uid].append((iid, est, true_r))
+    
+    for uid, user_ratings in top_n.items():
+        user_ratings.sort(key=lambda x: x[1], reverse=True)
+        top_n[uid] = user_ratings[:n]
+    
+    return top_n
+
+def precision_recall_at_k(predictions, k=10, threshold=4.0):
+    user_est_true = defaultdict(list)
+    for uid, iid, true_r, est, _ in predictions:
+        user_est_true[uid].append((est, true_r))
+    
+    precisions = dict()
+    recalls = dict()
+    
+    for uid, user_ratings in user_est_true.items():
+        user_ratings.sort(key=lambda x: x[0], reverse=True)
+        top_k = user_ratings[:k]
+        
+        n_rel = sum((true_r >= threshold) for (_, true_r) in user_ratings)
+        n_rel_and_rec_k = sum((true_r >= threshold) for (_, true_r) in top_k)
+        
+        precisions[uid] = n_rel_and_rec_k / k if k != 0 else 0
+        recalls[uid] = n_rel_and_rec_k / n_rel if n_rel != 0 else 0
+    
+    return precisions, recalls
+
+
 
 def main(args):
     log = FileLogger(args.log_path)
@@ -72,7 +107,10 @@ def main(args):
         test_set = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
         predictions = algo.test(test_set)
         rmse = accuracy.rmse(predictions)
+        precisions, recalls = precision_recall_at_k(predictions, k = args.k, threshold = args.threshold)
         log.info(f"RMSE on eval set: {rmse:.4f}")
+        log.info(f"Average Precision@{args.k}: {sum(precisions.values()) / len(precisions)}")
+        log.info(f"Average Recall@{args.k}: {sum(recalls.values()) / len(recalls)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -87,6 +125,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_epoch", type=int, default=15)
     parser.add_argument("--reg_all", type=float, default=0.1)
     parser.add_argument("--k_neighbors", type = int, default = 20)
+    parser.add_argument("--k", type = int, default = 10)
+    parser.add_argument("--threshold", type = float, default = 4.0)
 
     args = parser.parse_args()
     main(args)
