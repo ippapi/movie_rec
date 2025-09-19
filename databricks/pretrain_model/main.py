@@ -113,7 +113,7 @@ def main(args):
         test_set = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
         predictions = algo.test(test_set)
         rmse = accuracy.rmse(predictions)
-        recalls, ndcgs = precision_recall_at_k(predictions, k = args.k, threshold = args.threshold)
+        recalls, ndcgs = recall_ndcg_at_k(predictions, k = args.k, threshold = args.threshold)
         log.info(f"RMSE on eval set: {rmse:.4f}")
         log.info(f"Average NDCG@{args.k}: {sum(ndcgs.values()) / len(ndcgs)}")
         log.info(f"Average Recall@{args.k}: {sum(recalls.values()) / len(recalls)}")
