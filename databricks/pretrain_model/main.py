@@ -6,6 +6,7 @@ from surprise import Dataset, Reader, SVD, NMF, KNNWithMeans
 from surprise import dump
 from surprise import accuracy
 import sys
+import math
 
 class FileLogger:
     def __init__(self, logfile=None):
