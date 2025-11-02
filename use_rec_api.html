@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Movie Recommender</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        input, button { padding: 8px; font-size: 16px; }
+        button { margin-left: 10px; cursor: pointer; }
+        ul { margin-top: 20px; }
+        li { padding: 4px 0; }
+    </style>
+</head>
+<body>
+
+<h1>Movie Recommendation System</h1>
+
+<label for="user_id">Enter User ID:</label>
+<input type="text" id="user_id" placeholder="e.g., 123">
+<button onclick="getRecommendations()">Get Recommendations</button>
+
+<ul id="results"></ul>
+
+<script>
+async function getRecommendations() {
+    const userId = document.getElementById("user_id").value.trim();
+    if (!userId) {
+        alert("Please enter a User ID");
+        return;
+    }
+
+    const apiUrl = "http://<FASTAPI_HOST>:8000/recommend";
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId, top_k: 10 })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const resultsEl = document.getElementById("results");
+        resultsEl.innerHTML = "";
+
+        if (!data.recommendations || data.recommendations.length === 0) {
+            resultsEl.innerHTML = "<li>No recommendations found for this user.</li>";
+            return;
+        }
+
+        data.recommendations.forEach(movie => {
+            const li = document.createElement("li");
+            li.textContent = movie;
+            resultsEl.appendChild(li);
+        });
+
+    } catch (err) {
+        console.error(err);
+        alert("Error fetching recommendations. See console for details.");
+    }
+}
+</script>
+
+</body>
+</html>
