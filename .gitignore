@@ -96,6 +96,7 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
+./Shoe_Store_Website/.env
 .env
 .venv
 env/
