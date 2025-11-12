@@ -34,12 +34,22 @@ class FileLogger:
 # -----------------------------
 # Top-k metrics với negative sampling
 # -----------------------------
-def metrics_at_k_with_negatives(algo, test_df, train_df, k=10, n_neg=99):
+def metrics_at_k_with_negatives(algo, test_df, train_df, k=10, n_neg=99, threshold=4.0):
     """
-    test_df: DataFrame user_id, movie_id, rating (positive)
-    train_df: DataFrame để biết items user đã xem (avoid sampling seen items)
-    n_neg: số negative item cho mỗi user
+    Tính Precision@k, Recall@k, NDCG@k với negative sampling
+    Chỉ những item có rating >= threshold mới được coi là positive.
+
+    Args:
+        algo: model surprise đã train
+        test_df: DataFrame [user_id, movie_id, rating]
+        train_df: DataFrame train để biết items user đã xem
+        k: top-k
+        n_neg: số negative item mỗi user
+        threshold: rating >= threshold mới coi là positive
     """
+    # Lọc test_df theo threshold
+    test_df = test_df[test_df['rating'] >= threshold]
+
     all_items = set(train_df['movie_id'].unique())
     user_train_dict = train_df.groupby('user_id')['movie_id'].apply(set).to_dict()
 
@@ -47,6 +57,9 @@ def metrics_at_k_with_negatives(algo, test_df, train_df, k=10, n_neg=99):
 
     for uid, group in test_df.groupby('user_id'):
         pos_items = list(group['movie_id'])
+        if not pos_items:
+            continue  # user không có positive item sau khi filter
+
         seen_items = user_train_dict.get(uid, set())
         neg_candidates = list(all_items - seen_items - set(pos_items))
         if len(neg_candidates) >= n_neg:
@@ -83,6 +96,7 @@ def metrics_at_k_with_negatives(algo, test_df, train_df, k=10, n_neg=99):
     avg_ndcg = sum(ndcgs)/len(ndcgs) if ndcgs else 0
 
     return avg_precision, avg_recall, avg_ndcg
+
 
 # -----------------------------
 # Main function
@@ -137,7 +151,7 @@ def main(args):
 
         rmse = accuracy.rmse(algo.test(list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))))
         avg_precision, avg_recall, avg_ndcg = metrics_at_k_with_negatives(
-            algo, test_df, train_df, k=args.k, n_neg=99
+            algo, test_df, train_df, k=args.k, n_neg=99, threshold=args.threshold
         )
 
         log.info(f"Average Precision@{args.k}: {avg_precision:.4f}")
