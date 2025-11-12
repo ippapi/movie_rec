@@ -7,6 +7,7 @@ from surprise import dump
 from surprise import accuracy
 import sys
 import math
+import numpy as np
 
 class FileLogger:
     def __init__(self, logfile=None):
@@ -30,38 +31,49 @@ class FileLogger:
     def error(self, msg):
         self._log("ERROR", msg)
 
-
-def get_top_n(predictions, n=10):
-    top_n = defaultdict(list)
-    for uid, iid, true_r, est, _ in predictions:
-        top_n[uid].append((iid, est, true_r))
-    
-    for uid, user_ratings in top_n.items():
-        user_ratings.sort(key=lambda x: x[1], reverse=True)
-        top_n[uid] = user_ratings[:n]
-    
-    return top_n
-
-def metrics_at_k(predictions, k=10, threshold=4.0):
-    user_est_true = defaultdict(list)
-    for uid, iid, true_r, est, _ in predictions:
-        user_est_true[uid].append((est, true_r))
+# -----------------------------
+# Top-k metrics với negative sampling
+# -----------------------------
+def metrics_at_k_with_negatives(algo, test_df, train_df, k=10, n_neg=99):
+    """
+    test_df: DataFrame user_id, movie_id, rating (positive)
+    train_df: DataFrame để biết items user đã xem (avoid sampling seen items)
+    n_neg: số negative item cho mỗi user
+    """
+    all_items = set(train_df['movie_id'].unique())
+    user_train_dict = train_df.groupby('user_id')['movie_id'].apply(set).to_dict()
 
     precisions, recalls, ndcgs = [], [], []
 
-    for ratings in user_est_true.values():
-        ratings.sort(key=lambda x: x[0], reverse=True)
-        top_k = ratings[:k]
+    for uid, group in test_df.groupby('user_id'):
+        pos_items = list(group['movie_id'])
+        seen_items = user_train_dict.get(uid, set())
+        neg_candidates = list(all_items - seen_items - set(pos_items))
+        if len(neg_candidates) >= n_neg:
+            neg_items = np.random.choice(neg_candidates, n_neg, replace=False)
+        else:
+            neg_items = neg_candidates
 
-        n_rel_total = sum(r >= threshold for (_, r) in ratings)
-        n_rel_topk = sum(r >= threshold for (_, r) in top_k)
+        items_to_predict = pos_items + list(neg_items)
+        ratings_true = [1]*len(pos_items) + [0]*len(neg_items)
+
+        preds = []
+        for item, r_true in zip(items_to_predict, ratings_true):
+            est = algo.predict(uid, item).est
+            preds.append((est, r_true))
+
+        # sort top-k
+        preds.sort(key=lambda x: x[0], reverse=True)
+        top_k = preds[:k]
+
+        n_rel_total = sum(ratings_true)
+        n_rel_topk = sum(r for (_, r) in top_k)
 
         precisions.append(n_rel_topk / len(top_k) if top_k else 0)
         recalls.append(n_rel_topk / n_rel_total if n_rel_total else 0)
 
-        rels = [1 if r >= threshold else 0 for (_, r) in top_k]
-        ideal_rels = sorted([1 if r >= threshold else 0 for (_, r) in ratings], reverse=True)[:k]
-
+        rels = [r for (_, r) in top_k]
+        ideal_rels = sorted(ratings_true, reverse=True)[:k]
         dcg = sum(rel / math.log2(idx + 2) for idx, rel in enumerate(rels))
         idcg = sum(rel / math.log2(idx + 2) for idx, rel in enumerate(ideal_rels))
         ndcgs.append(dcg / idcg if idcg > 0 else 0)
@@ -72,9 +84,11 @@ def metrics_at_k(predictions, k=10, threshold=4.0):
 
     return avg_precision, avg_recall, avg_ndcg
 
+# -----------------------------
+# Main function
+# -----------------------------
 def main(args):
     log = FileLogger(args.log_path)
-
     start_time = time.time()
 
     if args.load_model:
@@ -109,28 +123,29 @@ def main(args):
             log.info(f"Saving model to {args.save_model} ...")
             dump.dump(args.save_model, algo=algo)
 
-    if args.mode == "eval" and args.testdir:
+    if args.mode == "eval" and args.testdir and args.traindir:
         log.info("Loading testing data...")
         test_df = pd.read_parquet(args.testdir)
-        log.info("Evaluating model...")
-        test_set = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
-        predictions = algo.test(test_set)
-        rmse = accuracy.rmse(predictions)
-    
-        avg_precision, avg_recall, avg_ndcg = metrics_at_k(
-            predictions, k=args.k, threshold=args.threshold
+        train_df = pd.read_parquet(args.traindir)
+        log.info("Evaluating model with negative sampling...")
+
+        rmse = accuracy.rmse(algo.test(list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))))
+        avg_precision, avg_recall, avg_ndcg = metrics_at_k_with_negatives(
+            algo, test_df, train_df, k=args.k, n_neg=99
         )
-        
+
         log.info(f"Average Precision@{args.k}: {avg_precision:.4f}")
         log.info(f"Average Recall@{args.k}: {avg_recall:.4f}")
         log.info(f"Average NDCG@{args.k}: {avg_ndcg:.4f}")
 
-    
+# -----------------------------
+# Argparse
+# -----------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--traindir", type=str)
     parser.add_argument("--testdir", type=str)
-    parser.add_argument("--model_name", default = "svd", choices = ["svd", "nmf", "knn"])
+    parser.add_argument("--model_name", default="svd", choices=["svd", "nmf", "knn"])
     parser.add_argument("--save_model", type=str, default=None)
     parser.add_argument("--load_model", type=str, default=None)
     parser.add_argument("--log_path", type=str, default=None)
@@ -138,10 +153,9 @@ if __name__ == "__main__":
     parser.add_argument("--n_factor", type=int, default=20)
     parser.add_argument("--n_epoch", type=int, default=15)
     parser.add_argument("--reg_all", type=float, default=0.1)
-    parser.add_argument("--k_neighbors", type = int, default = 20)
-    parser.add_argument("--k", type = int, default = 10)
-    parser.add_argument("--threshold", type = float, default = 4.0)
+    parser.add_argument("--k_neighbors", type=int, default=20)
+    parser.add_argument("--k", type=int, default=10)
+    parser.add_argument("--threshold", type=float, default=4.0)
 
     args = parser.parse_args()
     main(args)
-
