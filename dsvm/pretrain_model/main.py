@@ -2,7 +2,7 @@ import argparse
 import pandas as pd
 import time
 from collections import defaultdict
-from surprise import Dataset, Reader, SVD, NMF, KNNWithMeans
+from surprise import Dataset, Reader, SVD, NMF, KNNWithMeans, BaselineOnly, SlopeOne, CoClustering
 from surprise import dump
 from surprise import accuracy
 import sys
@@ -101,9 +101,15 @@ def main(args):
             algo = NMF(n_factors=args.n_factor, n_epochs=args.n_epoch)
         elif args.model_name.lower() == "knn":
             algo = KNNWithMeans(k=args.k_neighbors, sim_options={'name': 'cosine', 'user_based': True})
+        elif args.model_name.lower() == "baseline":
+            algo = BaselineOnly(bsl_options={'method': 'als', 'reg': args.reg_all})
+        elif args.model_name.lower() == "slopeone":
+            algo = SlopeOne()
+        elif args.model_name.lower() == "cocluster":
+            algo = CoClustering(n_cltr_u=args.n_cltr_u, n_cltr_i=args.n_cltr_i, n_epochs=args.n_epoch)
         else:
             raise ValueError(f"Unknown model_name: {args.model_name}")
-        log.info(f"Created new model: {args.model_name}")
+
 
     if args.mode == "train" and args.traindir:
         log.info("Loading training data...")
