@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--traindir", type=str)
     parser.add_argument("--testdir", type=str)
-    parser.add_argument("--model_name", default="svd", choices=["svd", "nmf", "knn"])
+    parser.add_argument("--model_name", default="svd", choices=["svd", "nmf", "knn", "baseline", "slopeone", "cocluster"])
     parser.add_argument("--save_model", type=str, default=None)
     parser.add_argument("--load_model", type=str, default=None)
     parser.add_argument("--log_path", type=str, default=None)
