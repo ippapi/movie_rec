@@ -42,31 +42,52 @@ def get_top_n(predictions, n=10):
     
     return top_n
 
-def precision_recall_at_k(predictions, k=10, threshold=4.0):
+def metrics_at_k(predictions, k=10, threshold=4.0, max_rating=5.0):
+    """
+    Compute Precision@k, Recall@k, NDCG@k for all users.
+    Ratings are normalized for NDCG to increase sensitivity.
+    Returns:
+        avg_precision, avg_recall, avg_ndcg
+    """
     user_est_true = defaultdict(list)
     for uid, iid, true_r, est, _ in predictions:
         user_est_true[uid].append((est, true_r))
     
     precisions = []
     recalls = []
-    
+    ndcgs = []
+
     for user_ratings in user_est_true.values():
+        # Sort by predicted rating
         user_ratings.sort(key=lambda x: x[0], reverse=True)
         top_k = user_ratings[:k]
+
+        # Precision & Recall
+        n_rel_total = sum(true_r >= threshold for (_, true_r) in user_ratings)
+        n_rel_topk = sum(true_r >= threshold for (_, true_r) in top_k)
         
-        n_rel = sum(true_r >= threshold for (_, true_r) in user_ratings)
-        n_rel_and_rec_k = sum(true_r >= threshold for (_, true_r) in top_k)
-        
-        recall = n_rel_and_rec_k / n_rel if n_rel != 0 else 0
-        precision = n_rel_and_rec_k / len(top_k) if len(top_k) > 0 else 0
-        
-        recalls.append(recall)
+        precision = n_rel_topk / len(top_k) if len(top_k) > 0 else 0
+        recall = n_rel_topk / n_rel_total if n_rel_total > 0 else 0
+
         precisions.append(precision)
-    
-    avg_recall = sum(recalls)/len(recalls) if recalls else 0
-    avg_precision = sum(precisions)/len(precisions) if precisions else 0
-    
-    return avg_precision, avg_recall
+        recalls.append(recall)
+
+        # NDCG
+        rels = [true_r / max_rating for (_, true_r) in top_k]  # rating normalized
+        dcg = sum(rel / math.log2(idx + 2) for idx, rel in enumerate(rels))
+
+        # ideal DCG
+        ideal_ratings = sorted([r / max_rating for (_, r) in user_ratings], reverse=True)[:k]
+        idcg = sum(rel / math.log2(idx + 2) for idx, rel in enumerate(ideal_ratings))
+        ndcg = dcg / idcg if idcg > 0 else 0
+        ndcgs.append(ndcg)
+
+    avg_precision = sum(precisions) / len(precisions) if precisions else 0
+    avg_recall = sum(recalls) / len(recalls) if recalls else 0
+    avg_ndcg = sum(ndcgs) / len(ndcgs) if ndcgs else 0
+
+    return avg_precision, avg_recall, avg_ndcg
+
 
 def main(args):
     log = FileLogger(args.log_path)
@@ -113,13 +134,14 @@ def main(args):
         predictions = algo.test(test_set)
         rmse = accuracy.rmse(predictions)
     
-        avg_precision, avg_recall = precision_recall_at_k(
-            predictions, k=args.k, threshold=args.threshold
+        avg_precision, avg_recall, avg_ndcg = metrics_at_k(
+            predictions, k=args.k, threshold=args.threshold, max_rating=5.0
         )
-    
-        log.info(f"RMSE on eval set: {rmse:.4f}")
+        
         log.info(f"Average Precision@{args.k}: {avg_precision:.4f}")
         log.info(f"Average Recall@{args.k}: {avg_recall:.4f}")
+        log.info(f"Average NDCG@{args.k}: {avg_ndcg:.4f}")
+
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
