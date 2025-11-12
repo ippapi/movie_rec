@@ -159,9 +159,12 @@ if __name__ == "__main__":
     parser.add_argument("--n_factor", type=int, default=20)
     parser.add_argument("--n_epoch", type=int, default=15)
     parser.add_argument("--reg_all", type=float, default=0.1)
+    parser.add_argument("--reg_all", type=float, default=0.1)
     parser.add_argument("--k_neighbors", type=int, default=20)
     parser.add_argument("--k", type=int, default=10)
     parser.add_argument("--threshold", type=float, default=4.0)
+    parser.add_argument("--n_cltr_u", type=int, default=10)
+    parser.add_argument("--n_cltr_i", type=int, default=10)    
 
     args = parser.parse_args()
     main(args)
