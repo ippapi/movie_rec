@@ -151,7 +151,7 @@ def main(args):
 
         rmse = accuracy.rmse(algo.test(list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))))
         avg_precision, avg_recall, avg_ndcg = metrics_at_k_with_negatives(
-            algo, test_df, train_df, k=args.k, n_neg=99, threshold=args.threshold
+            algo, test_df, train_df, k=args.k, n_neg=args.n_neg, threshold=args.threshold
         )
 
         log.info(f"Average Precision@{args.k}: {avg_precision:.4f}")
@@ -172,6 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="train", choices=["train","eval"])
     parser.add_argument("--n_factor", type=int, default=20)
     parser.add_argument("--n_epoch", type=int, default=15)
+    parser.add_argument("--n_neg", type=int, default=50)
     parser.add_argument("--reg_all", type=float, default=0.1)
     parser.add_argument("--k_neighbors", type=int, default=20)
     parser.add_argument("--k", type=int, default=10)
