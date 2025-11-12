@@ -67,8 +67,10 @@ def recall_ndcg_at_k(predictions, k=10, threshold=4.0):
         
         ndcgs[uid] = dcg / idcg if idcg > 0 else 0
     
-    return recalls, ndcgs
-
+    avg_recall = sum(recalls.values()) / len(recalls) if recalls else 0
+    avg_ndcg = sum(ndcgs.values()) / len(ndcgs) if ndcgs else 0
+    
+    return recalls, ndcgs, avg_recall, avg_ndcg
 
 def main(args):
     log = FileLogger(args.log_path)
@@ -114,10 +116,18 @@ def main(args):
         test_set = list(zip(test_df['user_id'], test_df['movie_id'], test_df['rating']))
         predictions = algo.test(test_set)
         rmse = accuracy.rmse(predictions)
-        recalls, ndcgs = recall_ndcg_at_k(predictions, k = args.k, threshold = args.threshold)
+    
+        recalls, ndcgs, avg_recall, avg_ndcg = recall_ndcg_at_k(
+            predictions, k=args.k, threshold=args.threshold
+        )
+    
         log.info(f"RMSE on eval set: {rmse:.4f}")
-        log.info(f"Average NDCG@{args.k}: {sum(ndcgs.values()) / len(ndcgs)}")
-        log.info(f"Average Recall@{args.k}: {sum(recalls.values()) / len(recalls)}")
+        log.info(f"Average NDCG@{args.k}: {avg_ndcg:.4f}")
+        log.info(f"Average Recall@{args.k}: {avg_recall:.4f}")
+    
+        for uid in recalls:
+            log.info(f"User {uid}: Recall@{args.k}={recalls[uid]:.3f}, NDCG@{args.k}={ndcgs[uid]:.3f}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
