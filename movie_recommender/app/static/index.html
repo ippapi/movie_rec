@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Movie Recommender</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1c1c1c, #3a3a3a);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2rem;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    input {
+      background: #fff;
+      color: #000;
+    }
+    button {
+      background: #0078ff;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover {
+      background: #005fcc;
+    }
+    pre {
+      text-align: left;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      color: #00b4ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Movie Recommendation</h1>
+    <input type="text" id="userId" placeholder="Enter user ID (e.g. 1)" />
+    <input type="number" id="topK" placeholder="Top K (e.g. 5)" value="5" min="1" />
+    <button id="submitBtn">Get Recommendations</button>
+    <pre id="output"></pre>
+  </div>
+
+  <script>
+    const API_URL = "/recommend";
+
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const userId = document.getElementById("userId").value.trim();
+      const topK = parseInt(document.getElementById("topK").value) || 10;
+
+      if (!userId) {
+        document.getElementById("output").textContent = "⚠️ Please enter a user ID!";
+        return;
+      }
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: userId, top_k: topK }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          document.getElementById("output").textContent = `Error: ${JSON.stringify(data)}`;
+          return;
+        }
+
+        if (data.recommendations?.length) {
+          const list = data.recommendations
+            .map((m, i) => `${i + 1}. ${m.title} (Score: ${m.score.toFixed(2)})`)
+            .join("\n");
+          document.getElementById("output").textContent = list;
+        } else {
+          document.getElementById("output").textContent = `No recommendations found.`;
+        }
+      } catch (err) {
+        document.getElementById("output").textContent = `Network error: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

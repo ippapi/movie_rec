@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pandas
+pyarrow
+numpy==1.26.4
+scikit-surprise==1.1.3
